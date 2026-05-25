@@ -35,14 +35,7 @@
                 <dt class="text-gray-500">Status</dt>
                 <dd class="font-medium">{{ ucfirst(str_replace('_', ' ', $absen->status)) }}</dd>
             </div>
-            <div>
-                <dt class="text-gray-500">Koordinat</dt>
-                <dd class="font-medium">{{ $absen->latitude && $absen->longitude ? $absen->latitude.', '.$absen->longitude : '-' }}</dd>
-            </div>
-            <div class="sm:col-span-2">
-                <dt class="text-gray-500">Lokasi</dt>
-                <dd class="font-medium">{{ $absen->lokasi ?? '-' }}</dd>
-            </div>
+            @include('partials.absen-lokasi', ['absen' => $absen])
         </dl>
     </div>
 

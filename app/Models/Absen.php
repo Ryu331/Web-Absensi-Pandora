@@ -24,6 +24,20 @@ class Absen extends Model
         'longitude' => 'decimal:8',
     ];
 
+    public function hasCoordinates(): bool
+    {
+        return $this->latitude !== null && $this->longitude !== null;
+    }
+
+    public function googleMapsUrl(): ?string
+    {
+        if (! $this->hasCoordinates()) {
+            return null;
+        }
+
+        return 'https://www.google.com/maps?q='.$this->latitude.','.$this->longitude;
+    }
+
     public function hasCheckedOut(): bool
     {
         return !empty($this->jam_keluar);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Absen;
 use App\Models\AbsenRequest;
+use App\Services\ReverseGeocodeService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -60,20 +61,45 @@ class AbsenController extends Controller
     }
 
     /**
+     * Reverse geocode: koordinat → alamat teks + link Google Maps.
+     */
+    public function reverseGeocode(Request $request, ReverseGeocodeService $geocoder)
+    {
+        $validated = $request->validate([
+            'latitude'  => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        return response()->json(
+            $geocoder->resolve(
+                (float) $validated['latitude'],
+                (float) $validated['longitude']
+            )
+        );
+    }
+
+    /**
      * Simpan data absensi baru atau permohonan pulang cepat.
      */
     public function store(Request $request)
     {
+        $requestType = $request->input('request_type');
+
         $validated = $request->validate([
             'request_type' => ['required', 'in:masuk,keluar'],
             'lokasi'       => ['nullable', 'string', 'max:255'],
             'latitude'     => ['nullable', 'numeric', 'between:-90,90'],
             'longitude'    => ['nullable', 'numeric', 'between:-180,180'],
-            'foto_wajah'   => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'foto_wajah'   => [
+                $requestType === 'masuk' ? 'required' : 'nullable',
+                'image',
+                'mimes:jpg,jpeg,png',
+                'max:5120',
+            ],
             'catatan'      => ['nullable', 'string', 'max:1000'],
+        ], [
+            'foto_wajah.required' => 'Foto wajah wajib. Scan wajah terlebih dahulu sebelum absen masuk.',
         ]);
-
-        $requestType = $validated['request_type'];
 
         if ($requestType === 'masuk') {
             $todayAbsen = Absen::where('user_id', Auth::id())
@@ -94,10 +120,7 @@ class AbsenController extends Controller
                 return back()->with('error', 'Permintaan absen masuk Anda sudah menunggu konfirmasi admin.');
             }
 
-            $fotoPath = null;
-            if ($request->hasFile('foto_wajah')) {
-                $fotoPath = $request->file('foto_wajah')->store('foto_absen', 'public');
-            }
+            $fotoPath = $request->file('foto_wajah')->store('foto_absen', 'public');
 
             if ($todayAbsen && $todayAbsen->status === 'tidak_dikonfirmasi') {
                 $todayAbsen->update([
