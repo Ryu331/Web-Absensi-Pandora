@@ -117,13 +117,13 @@
                     </form>
 
                     <!-- Info akun default -->
-                    <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <!-- <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
                         <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Akun Default:</p>
                         <div class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
                             <p>🔑 <span class="font-medium">Admin:</span> admin@example.com / pandora123</p>
                             <p>👤 <span class="font-medium">User:</span> user@example.com / password</p>
                         </div>
-                    </div>
+                    </div> -->
                 </div>
 
                 <div class="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">

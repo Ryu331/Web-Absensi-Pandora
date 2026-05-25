@@ -77,6 +77,10 @@
                 <input type="hidden" name="latitude" id="latitude" value="{{ old('latitude') }}">
                 <input type="hidden" name="longitude" id="longitude" value="{{ old('longitude') }}">
                 <p id="lokasiStatus" class="mt-1 text-xs text-gray-400"></p>
+                <a id="lokasiMapsLink" href="#" target="_blank" rel="noopener noreferrer"
+                   class="mt-1 hidden text-xs text-blue-600 hover:underline dark:text-blue-400">
+                    Buka di Google Maps →
+                </a>
             </div>
 
             <div>
@@ -108,12 +112,105 @@
     setInterval(updateJam, 1000);
     updateJam();
 
-    function ambilLokasi() {
+    function setLokasiStatus(message, type) {
         const statusEl = document.getElementById('lokasiStatus');
-        statusEl.textContent = 'Mengambil lokasi GPS...';
+        if (!statusEl) return;
+        statusEl.textContent = message;
+        statusEl.className = 'mt-1 text-xs ' + (
+            type === 'ok' ? 'text-green-600' :
+            type === 'err' ? 'text-red-500' : 'text-gray-400'
+        );
+    }
+
+    function tampilkanLinkMaps(url) {
+        const link = document.getElementById('lokasiMapsLink');
+        if (!link || !url) return;
+        link.href = url;
+        link.classList.remove('hidden');
+    }
+
+    function formatAlamatDariApi(data) {
+        const admin = (data.localityInfo?.administrative || [])
+            .filter(function(a) { return a.order >= 7; })
+            .sort(function(a, b) { return b.order - a.order; })
+            .map(function(a) { return a.name; });
+
+        const unik = [];
+        admin.forEach(function(nama) {
+            if (nama && !unik.includes(nama)) unik.push(nama);
+        });
+
+        if (unik.length) {
+            return unik.join(', ');
+        }
+
+        return [data.locality, data.city, data.principalSubdivision, data.countryName]
+            .filter(Boolean)
+            .filter(function(v, i, arr) { return arr.indexOf(v) === i; })
+            .join(', ');
+    }
+
+    async function ambilAlamatBigDataCloud(lat, lng) {
+        const url = 'https://api.bigdatacloud.net/data/reverse-geocode-client'
+            + '?latitude=' + encodeURIComponent(lat)
+            + '&longitude=' + encodeURIComponent(lng)
+            + '&localityLanguage=id';
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('API alamat gagal');
+        const data = await res.json();
+        const address = formatAlamatDariApi(data);
+        if (!address) throw new Error('Alamat kosong');
+        return address;
+    }
+
+    async function ambilAlamatServer(lat, lng) {
+        const url = @json(route('user.absens.reverse-geocode'))
+            + '?latitude=' + encodeURIComponent(lat)
+            + '&longitude=' + encodeURIComponent(lng);
+
+        const res = await fetch(url, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (!res.ok) throw new Error('Server geocode gagal');
+        const data = await res.json();
+        return data.address;
+    }
+
+    async function isiAlamatDariKoordinat(lat, lng) {
+        setLokasiStatus('Mencari nama lokasi / alamat...', 'info');
+        const mapsUrl = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+        let address = null;
+
+        try {
+            address = await ambilAlamatBigDataCloud(lat, lng);
+        } catch (e) {
+            try {
+                address = await ambilAlamatServer(lat, lng);
+            } catch (e2) {
+                address = null;
+            }
+        }
+
+        if (address && !/^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(address) && !address.startsWith('Lat:')) {
+            document.getElementById('lokasi').value = address.substring(0, 255);
+            tampilkanLinkMaps(mapsUrl);
+            setLokasiStatus('✅ Alamat lokasi berhasil (mirip share lokasi). Bisa diedit jika perlu.', 'ok');
+        } else {
+            document.getElementById('lokasi').value = address || ('Lat: ' + lat + ', Lng: ' + lng);
+            tampilkanLinkMaps(mapsUrl);
+            setLokasiStatus('GPS OK. Alamat otomatis terbatas — edit manual atau buka Google Maps.', 'err');
+        }
+
+        document.getElementById('lokasi').removeAttribute('readonly');
+    }
+
+    function ambilLokasi() {
+        setLokasiStatus('Mengambil lokasi GPS...', 'info');
+        document.getElementById('lokasiMapsLink')?.classList.add('hidden');
 
         if (!navigator.geolocation) {
-            statusEl.textContent = 'Browser tidak mendukung geolokasi.';
+            setLokasiStatus('Browser tidak mendukung geolokasi.', 'err');
             return;
         }
 
@@ -124,18 +221,14 @@
 
                 document.getElementById('latitude').value  = lat;
                 document.getElementById('longitude').value = lng;
-                document.getElementById('lokasi').value    = `Lat: ${lat}, Lng: ${lng}`;
-                document.getElementById('lokasi').removeAttribute('readonly');
 
-                statusEl.textContent = '✅ Lokasi berhasil diambil. Anda bisa mengedit nama lokasi.';
-                statusEl.className   = 'mt-1 text-xs text-green-600';
+                isiAlamatDariKoordinat(lat, lng);
             },
             function(err) {
-                statusEl.textContent = 'Gagal ambil GPS: ' + err.message;
-                statusEl.className   = 'mt-1 text-xs text-red-500';
+                setLokasiStatus('Gagal ambil GPS: ' + err.message, 'err');
                 document.getElementById('lokasi').removeAttribute('readonly');
             },
-            { enableHighAccuracy: true, timeout: 10000 }
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     }
 </script>

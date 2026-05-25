@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Absen;
 use App\Models\AbsenRequest;
+use App\Services\ReverseGeocodeService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -57,6 +58,24 @@ class AbsenController extends Controller
         }
 
         return view('user.absens.create', compact('todayAbsen', 'action', 'pendingMasuk', 'pendingKeluar'));
+    }
+
+    /**
+     * Reverse geocode: koordinat → alamat teks + link Google Maps.
+     */
+    public function reverseGeocode(Request $request, ReverseGeocodeService $geocoder)
+    {
+        $validated = $request->validate([
+            'latitude'  => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        return response()->json(
+            $geocoder->resolve(
+                (float) $validated['latitude'],
+                (float) $validated['longitude']
+            )
+        );
     }
 
     /**

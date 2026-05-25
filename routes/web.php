@@ -101,6 +101,8 @@ Route::middleware(['auth', 'role:user'])
         Route::get('/dashboard', [UserDashboard::class, 'index'])->name('dashboard');
 
         // Absensi
+        Route::get('absens/reverse-geocode', [UserAbsen::class, 'reverseGeocode'])
+            ->name('absens.reverse-geocode');
         Route::resource('absens', UserAbsen::class)->only(['index', 'create', 'store', 'show']);
 
         // Laporan
